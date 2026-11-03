@@ -36,8 +36,8 @@ struct LevelsView: View {
 
     var body: some View {
         let volume = EdgeMeter(symbol: state.muted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                               value: state.muted ? 0 : state.volume, label: state.muted ? "Muted" : nil, colors: Icon.cool)
-        let brightness = EdgeMeter(symbol: "sun.max.fill", value: state.brightness, label: nil, colors: Icon.warm)
+                               value: state.muted ? 0 : state.volume, label: state.muted ? "Muted" : nil)
+        let brightness = EdgeMeter(symbol: "sun.max.fill", value: state.brightness, label: nil)
         HStack(spacing: 0) {
             if prefs.swapSides { volume } else { brightness }
             Spacer()
@@ -63,14 +63,13 @@ struct EdgeMeter: View {
     let symbol: String
     let value: Float?
     let label: String?
-    let colors: [NSColor]
 
     var body: some View {
         VStack(spacing: 5) {
             GeometryReader { geo in
                 ZStack(alignment: .bottom) {
                     Capsule().fill(Color.primary.opacity(0.1))
-                    Capsule().fill(LinearGradient(colors: colors.map(Color.init), startPoint: .bottom, endPoint: .top))
+                    Capsule().fill(Color.primary.opacity(0.8))
                         .frame(height: max(6, geo.size.height * CGFloat(value ?? 0)))
                         .opacity(value == nil ? 0 : 1)
                 }

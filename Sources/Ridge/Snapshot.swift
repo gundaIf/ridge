@@ -26,7 +26,7 @@ enum Snapshot {
             let settings = trimTop(capture(WindowMock(title: "Ridge Settings") { SettingsView() }, dark: dark))
             save("menu-\(suffix).png", shadowed(menu))
             save("settings-\(suffix).png", shadowed(settings))
-            if dark { save("hero.png", hero(menu: menu)) }
+            if !dark { save("hero.png", hero(menu: menu)) }
         }
         save("gestures.png", gestures())
     }
@@ -98,37 +98,40 @@ enum Snapshot {
 
     // MARK: Composed artwork
 
-    private static func text(_ string: String, size: CGFloat, weight: NSFont.Weight, color: NSColor, at point: NSPoint) {
-        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color]
+    private static func text(_ string: String, size: CGFloat, weight: NSFont.Weight, color: NSColor = Ink.black,
+                             serif: Bool = false, at point: NSPoint) {
+        var font = NSFont.systemFont(ofSize: size, weight: weight)
+        if serif, let descriptor = font.fontDescriptor.withDesign(.serif) { font = NSFont(descriptor: descriptor, size: size) ?? font }
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         (string as NSString).draw(at: point, withAttributes: attributes)
     }
 
-    private static func background(_ rect: NSRect) {
-        NSGradient(colors: [NSColor(srgbRed: 0.05, green: 0.05, blue: 0.08, alpha: 1),
-                            NSColor(srgbRed: 0.13, green: 0.14, blue: 0.23, alpha: 1)])?.draw(in: rect, angle: 60)
-        NSGradient(colors: [NSColor(srgbRed: 0.48, green: 0.42, blue: 1, alpha: 0.25), .clear])?
-            .draw(in: NSBezierPath(rect: rect), relativeCenterPosition: NSPoint(x: 0.55, y: 0.3))
+    /// A sheet of paper with the plate pressed into it, inset from the edges.
+    private static func background(_ rect: NSRect, rng: inout Ink.Random) {
+        Ink.sheet(rect, rng: &rng)
+        Ink.plateMark(rect.insetBy(dx: 64, dy: 64), wobble: 4, rng: &rng)
     }
 
     private static func hero(menu: NSBitmapImageRep) -> Data? {
         let w = 2400, h = 1200
+        var rng = Ink.Random(0x4845_524F)
         return Icon.png(width: w, height: h) {
             let rect = NSRect(x: 0, y: 0, width: w, height: h)
-            background(rect)
+            background(rect, rng: &rng)
             Icon.drawAppIcon(at: NSPoint(x: 150, y: 560), size: 420)
-            let white = NSColor.white
-            text("Ridge", size: 150, weight: .bold, color: white, at: NSPoint(x: 200, y: 370))
-            text("Volume and brightness,", size: 64, weight: .medium, color: white.withAlphaComponent(0.85), at: NSPoint(x: 204, y: 270))
-            text("right on the edges of your trackpad.", size: 64, weight: .medium, color: white.withAlphaComponent(0.85), at: NSPoint(x: 204, y: 190))
-            let scale = (CGFloat(h) - 200) / CGFloat(menu.pixelsHigh)
+            text("Ridge", size: 160, weight: .black, serif: true, at: NSPoint(x: 196, y: 360))
+            let sub = Ink.black.withAlphaComponent(0.72)
+            text("Volume and brightness,", size: 62, weight: .regular, color: sub, serif: true, at: NSPoint(x: 204, y: 270))
+            text("right on the edges of your trackpad.", size: 62, weight: .regular, color: sub, serif: true, at: NSPoint(x: 204, y: 190))
+            let scale = (CGFloat(h) - 240) / CGFloat(menu.pixelsHigh)
             let mw = CGFloat(menu.pixelsWide) * scale, mh = CGFloat(menu.pixelsHigh) * scale
             NSGraphicsContext.saveGraphicsState()
             let shadow = NSShadow()
-            shadow.shadowColor = .black.withAlphaComponent(0.55)
-            shadow.shadowBlurRadius = 80
-            shadow.shadowOffset = NSSize(width: 0, height: -30)
+            shadow.shadowColor = .black.withAlphaComponent(0.25)
+            shadow.shadowBlurRadius = 50
+            shadow.shadowOffset = NSSize(width: 0, height: -20)
             shadow.set()
-            let frame = NSRect(x: CGFloat(w) - mw - 230, y: (CGFloat(h) - mh) / 2, width: mw, height: mh)
+            let frame = NSRect(x: CGFloat(w) - mw - 240, y: (CGFloat(h) - mh) / 2, width: mw, height: mh)
             NSColor.black.setFill()
             NSBezierPath(roundedRect: frame.insetBy(dx: 6, dy: 6), xRadius: 30, yRadius: 30).fill()
             NSShadow().set()
@@ -137,60 +140,49 @@ enum Snapshot {
         }
     }
 
-    /// A map of the trackpad showing where each gesture lives.
+    /// A linocut map of the trackpad: each gesture is a cut in the block.
     private static func gestures() -> Data? {
         let w = 2400, h = 1300
+        var rng = Ink.Random(0x4753_5452)
         return Icon.png(width: w, height: h) {
             let rect = NSRect(x: 0, y: 0, width: w, height: h)
-            background(rect)
+            background(rect, rng: &rng)
             let pad = NSRect(x: 600, y: 230, width: 1200, height: 840)
-            let slab = NSBezierPath(roundedRect: pad, xRadius: 90, yRadius: 90)
-            NSGraphicsContext.saveGraphicsState()
-            let drop = NSShadow()
-            drop.shadowColor = .black.withAlphaComponent(0.6)
-            drop.shadowBlurRadius = 90
-            drop.shadowOffset = NSSize(width: 0, height: -36)
-            drop.set()
-            NSColor(srgbRed: 0.15, green: 0.16, blue: 0.22, alpha: 1).setFill()
-            slab.fill()
-            NSGraphicsContext.restoreGraphicsState()
-            NSGradient(colors: [NSColor(srgbRed: 0.14, green: 0.15, blue: 0.21, alpha: 1),
-                                NSColor(srgbRed: 0.22, green: 0.24, blue: 0.34, alpha: 1)])?.draw(in: slab, angle: 90)
-            slab.lineWidth = 4
-            NSColor.white.withAlphaComponent(0.12).setStroke()
-            slab.stroke()
+            let block = Ink.rough(NSBezierPath(roundedRect: pad, xRadius: 90, yRadius: 90), wobble: 5, step: 7, rng: &rng)
+            Ink.print(block, grain: 1.5, rng: &rng)
 
-            func glow(_ path: NSBezierPath, _ colors: [NSColor], angle: CGFloat) {
-                NSGraphicsContext.saveGraphicsState()
-                let shadow = NSShadow()
-                shadow.shadowColor = colors[0].withAlphaComponent(0.85)
-                shadow.shadowBlurRadius = 60
-                shadow.set()
-                colors[0].setFill()
-                path.fill()
-                NSGraphicsContext.restoreGraphicsState()
-                NSGradient(colors: colors)?.draw(in: path, angle: angle)
-            }
-            let green = [NSColor(srgbRed: 0.18, green: 0.82, blue: 0.55, alpha: 1), NSColor(srgbRed: 0.45, green: 0.95, blue: 0.75, alpha: 1)]
-            let pink = [NSColor(srgbRed: 1, green: 0.32, blue: 0.48, alpha: 1), NSColor(srgbRed: 1, green: 0.55, blue: 0.62, alpha: 1)]
-            glow(NSBezierPath(roundedRect: NSRect(x: pad.minX + 50, y: pad.minY + 150, width: 44, height: 560), xRadius: 22, yRadius: 22), Icon.warm, angle: 90)
-            glow(NSBezierPath(roundedRect: NSRect(x: pad.maxX - 94, y: pad.minY + 150, width: 44, height: 460), xRadius: 22, yRadius: 22), Icon.cool, angle: 90)
-            glow(NSBezierPath(roundedRect: NSRect(x: pad.minX + 260, y: pad.minY + 46, width: 680, height: 40), xRadius: 20, yRadius: 20), green, angle: 0)
+            func cut(_ path: NSBezierPath) { Ink.carve(Ink.rough(path, wobble: 3, step: 5, rng: &rng)) }
+            cut(NSBezierPath(roundedRect: NSRect(x: pad.minX + 50, y: pad.minY + 150, width: 44, height: 560), xRadius: 22, yRadius: 22))
+            cut(NSBezierPath(roundedRect: NSRect(x: pad.maxX - 94, y: pad.minY + 150, width: 44, height: 460), xRadius: 22, yRadius: 22))
+            cut(NSBezierPath(roundedRect: NSRect(x: pad.minX + 260, y: pad.minY + 46, width: 680, height: 40), xRadius: 20, yRadius: 20))
             for i in 0..<2 {
                 let r: CGFloat = 34
                 let c = NSPoint(x: pad.maxX - 120 + CGFloat(i) * 36, y: pad.maxY - 110 - CGFloat(i) * 20)
-                glow(NSBezierPath(ovalIn: NSRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)), pink, angle: 90)
+                cut(NSBezierPath(ovalIn: NSRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)))
             }
 
-            let label = NSColor.white, sub = NSColor.white.withAlphaComponent(0.6)
-            text("Brightness", size: 58, weight: .semibold, color: label, at: NSPoint(x: 150, y: 640))
-            text("Slide up or down", size: 40, weight: .regular, color: sub, at: NSPoint(x: 150, y: 580))
-            text("Volume", size: 58, weight: .semibold, color: label, at: NSPoint(x: 1880, y: 590))
-            text("Slide up or down", size: 40, weight: .regular, color: sub, at: NSPoint(x: 1880, y: 530))
-            text("Mute", size: 58, weight: .semibold, color: label, at: NSPoint(x: 1880, y: 1010))
-            text("Double-tap the corner", size: 40, weight: .regular, color: sub, at: NSPoint(x: 1880, y: 950))
-            text("Media", size: 58, weight: .semibold, color: label, at: NSPoint(x: 1080, y: 140))
-            text("Swipe to skip tracks", size: 40, weight: .regular, color: sub, at: NSPoint(x: 1015, y: 80))
+            // A ridge line gouged into the empty middle of the pad, with a few slips of the tool
+            for (row, lift) in [(0, CGFloat(0)), (1, CGFloat(-70)), (2, CGFloat(-140))] {
+                var points: [NSPoint] = []
+                var x = pad.minX + 220 + CGFloat(row) * 40
+                while x < pad.maxX - 220 - CGFloat(row) * 40 {
+                    let peak = sin((x - pad.minX) / 95) * 46 + sin((x - pad.minX) / 37) * 14
+                    points.append(NSPoint(x: x, y: pad.midY + 120 + lift + peak * (1 - CGFloat(row) * 0.3)))
+                    x += 14
+                }
+                Ink.gouge(points, width: 16 - CGFloat(row) * 4, rng: &rng)
+            }
+            Ink.chips(in: NSRect(x: pad.minX + 200, y: pad.minY + 160, width: pad.width - 400, height: 220), count: 7, size: 30, rng: &rng)
+
+            let sub = Ink.black.withAlphaComponent(0.65)
+            text("Brightness", size: 60, weight: .bold, serif: true, at: NSPoint(x: 150, y: 640))
+            text("Slide up or down", size: 40, weight: .regular, color: sub, serif: true, at: NSPoint(x: 150, y: 580))
+            text("Volume", size: 60, weight: .bold, serif: true, at: NSPoint(x: 1880, y: 590))
+            text("Slide up or down", size: 40, weight: .regular, color: sub, serif: true, at: NSPoint(x: 1880, y: 530))
+            text("Mute", size: 60, weight: .bold, serif: true, at: NSPoint(x: 1880, y: 1010))
+            text("Double-tap the corner", size: 40, weight: .regular, color: sub, serif: true, at: NSPoint(x: 1880, y: 950))
+            text("Media", size: 60, weight: .bold, serif: true, at: NSPoint(x: 1120, y: 140))
+            text("Swipe to skip tracks", size: 40, weight: .regular, color: sub, serif: true, at: NSPoint(x: 1035, y: 82))
         }
     }
 }
