@@ -1,0 +1,4 @@
+.build/
+Ridge.app/
+Ridge-*.zip
+.DS_Store
